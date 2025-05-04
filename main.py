@@ -13,7 +13,7 @@ async def run_monitor():
     scraper = VintedScraper()
     notifier = DiscordNotifier()
     print("Monitoring started...")
-    first_run = False
+    first_run = True
     while True:
         for config in settings.SEARCH_CONFIGS:
             try:

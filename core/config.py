@@ -8,7 +8,14 @@ class Settings:
     SEARCH_CONFIGS: List[Dict] = [
         {
             "search_text": "nike",
-            "max_price": 10,
+            "max_price": 2,
+            "min_price": 1,
+            "tags": [],
+            "webhook": "default"
+        },
+        {
+            "search_text": "under armour",
+            "max_price": 4,
             "min_price": 1,
             "tags": [],
             "webhook": "default"
