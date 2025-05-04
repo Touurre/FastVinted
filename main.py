@@ -1,29 +1,42 @@
-# main.py
 import asyncio
-from src.scraper import fetch_items
-from src.notifier import send_discord_alert, log_item_details
-from src.storage import is_new_item, mark_as_processed, init_db
-from config import settings
+from fastapi import FastAPI
+import uvicorn
+from core.scraper import VintedScraper
+from core.storage import VintedStorage
+from core.notifier import DiscordNotifier
+from api import create_app
+from core.config import settings
 
-async def monitor_vinted():
-    first_run = True
-    init_db()
+async def run_monitor():
+    """Exécute le monitoring en arrière-plan"""
+    storage = VintedStorage()
+    scraper = VintedScraper()
+    notifier = DiscordNotifier()
+    print("Monitoring started...")
+    first_run = False
     while True:
         for config in settings.SEARCH_CONFIGS:
-            print(f"Vérification de la recherche: {config['search_text']}")
             try:
-                items = fetch_items(config)
+                items = await scraper.fetch(config)
                 for item in items:
-                    item_id = item.get("id")
-                    if item_id and is_new_item(item_id):
+                    if await storage.is_new(item['id']):
+                        await storage.save(item)
                         if not first_run:
-                            send_discord_alert(item, config.get("webhook", "default"))
-                        mark_as_processed(item_id)
+                            await notifier.send(item, config.get('webhook'))
             except Exception as e:
-                print(f"Erreur: {e}")
+                print(f"Error: {e}")
         first_run = False
-        
         await asyncio.sleep(settings.CHECK_INTERVAL)
+    
+async def main():
+    app = create_app()
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000)
+    server = uvicorn.Server(config)
+
+    monitor_task = run_monitor()
+    server_task = server.serve()
+
+    await asyncio.gather(monitor_task, server_task)
 
 if __name__ == "__main__":
-    asyncio.run(monitor_vinted())
+    asyncio.run(main())
