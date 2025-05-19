@@ -9,6 +9,7 @@ import { Plus, Search, ArrowRight, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { searchItemsApi, itemsApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
+import Image from "next/image"
 
 export default function DashboardPage() {
   const { user } = useAuth()

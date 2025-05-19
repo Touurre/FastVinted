@@ -1,13 +1,14 @@
 import aiomysql
-from typing import List, Dict
+from typing import List, Dict, Optional, AsyncIterator
 from contextlib import asynccontextmanager
+import uuid
 
 class VintedStorage:
     def __init__(self):
-        self.pool = None
+        self.pool: Optional[aiomysql.Pool] = None
 
     async def connect(self, **kwargs):
-        """Crée un pool de connexions MySQL"""
+        """Établit le pool de connexions"""
         self.pool = await aiomysql.create_pool(
             host=kwargs.get('host', 'localhost'),
             port=kwargs.get('port', 3306),
@@ -24,17 +25,21 @@ class VintedStorage:
         if self.pool:
             self.pool.close()
             await self.pool.wait_closed()
+            self.pool = None
 
     @asynccontextmanager
-    async def _get_cursor(self):
+    async def get_cursor(self) -> AsyncIterator[aiomysql.Cursor]:
         """Gestionnaire de contexte pour les curseurs"""
+        if not self.pool:
+            raise RuntimeError("Pool de connexion non initialisé")
+        
         async with self.pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 yield cur
 
     async def is_new(self, item_url: str) -> bool:
-        """Vérifie si l'item existe déjà (version optimisée avec cache)"""
-        async with self._get_cursor() as cur:
+        """Vérifie si un item existe déjà"""
+        async with self.get_cursor() as cur:
             await cur.execute(
                 "SELECT 1 FROM Item WHERE url = %s LIMIT 1",
                 (item_url,)
@@ -42,7 +47,7 @@ class VintedStorage:
             return await cur.fetchone() is None
 
     async def batch_save(self, items: List[Dict]):
-        """Sauvegarde plusieurs items en une seule requête"""
+        """Sauvegarde plusieurs items en une seule opération"""
         if not items:
             return
 
@@ -51,6 +56,7 @@ class VintedStorage:
             photo = item.get('photo', {})
             user = item.get('user', {})
             values.append((
+                str(uuid.uuid4()),  # Génère un nouvel UUID
                 photo.get('full_size_url') or photo.get('url', ''),
                 item.get('title', ''),
                 item.get('status', 'inconnu'),
@@ -60,23 +66,23 @@ class VintedStorage:
                 f"https://www.vinted.fr{item['path']}",
                 item['search_item_id']
             ))
-
-        async with self._get_cursor() as cur:
+        
+        async with self.get_cursor() as cur:
             await cur.executemany(
                 """
-                INSERT INTO Item
-                (imageUrl, name, condition, size, price, sellerName, url, searchItemId, createdAt)
+                INSERT INTO Item 
+                (id, imageUrl, name, `condition`, size, price, sellerName, url, searchItemId, updatedAt)
                 VALUES 
-                (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """,
                 values
             )
 
     async def get_search_configs(self) -> List[Dict]:
-        """Récupère toutes les configurations de recherche (avec cache)"""
-        async with self._get_cursor() as cur:
+        """Récupère les configurations de recherche"""
+        async with self.get_cursor() as cur:
             await cur.execute("""
-                SELECT id, searchText, maxPrice, minPrice, tags 
+                SELECT id, searchText as searchText, maxPrice as maxPrice, minPrice as minPrice, tags as tags 
                 FROM SearchItem
             """)
             return [
@@ -89,3 +95,10 @@ class VintedStorage:
                 }
                 for item in await cur.fetchall()
             ]
+
+    # Gestionnaire de contexte asynchrone
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()

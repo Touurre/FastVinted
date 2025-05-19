@@ -174,12 +174,6 @@ export default function ResultsPage() {
                     fill
                     className="object-cover"
                   />
-                  <div className="absolute top-2 right-2">
-                    <Button variant="ghost" size="icon" className="rounded-full bg-background/80 backdrop-blur-sm">
-                      <Heart className="h-4 w-4" />
-                      <span className="sr-only">Add to wishlist</span>
-                    </Button>
-                  </div>
                 </div>
                 <CardContent className="p-4">
                   <div className="grid gap-2">
@@ -200,14 +194,12 @@ export default function ResultsPage() {
                       )}
                     </div>
                     <div className="flex items-center justify-between pt-2">
-                      <Link
-                        href={item.vendorUrl || "#"}
-                        target="_blank"
-                        className="text-sm text-muted-foreground hover:underline"
+                      <div
+                        className="text-sm text-muted-foreground"
                       >
-                        {item.vendor || "Seller"}
-                      </Link>
-                      <Link href={item.itemUrl || "#"} target="_blank">
+                        {item.sellerName || "Seller"}
+                      </div>
+                      <Link href={item.url || "#"} target="_blank">
                         <Button variant="outline" size="sm" className="gap-1 rounded-full">
                           <ExternalLink className="h-3 w-3" />
                           View
