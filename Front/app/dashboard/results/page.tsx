@@ -41,7 +41,7 @@ export default function ResultsPage() {
 
         setSearchInfo({
           id: searchId,
-          name: searchData.name,
+          name: searchData.searchText,
           lastUpdated: new Date().toISOString(),
         })
       } else {

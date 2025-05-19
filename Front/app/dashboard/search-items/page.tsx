@@ -182,7 +182,6 @@ export default function SearchItemsPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <span className="text-sm text-muted-foreground">{item.resultsCount || 0} matching items found</span>
                 <Link href={`/dashboard/results?search=${item.id}`}>
                   <Button variant="outline" size="sm" className="rounded-full">
                     View Results
