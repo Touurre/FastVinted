@@ -29,11 +29,11 @@ export default function DashboardPage() {
     setIsLoading(true)
     try {
       // Fetch search items and all items
-      const [searchItems, items] = await Promise.all([searchItemsApi.getAll(), itemsApi.getAll()])
+      const [searchItems, items, numberOfItems] = await Promise.all([searchItemsApi.getAll(), itemsApi.getAll(1, 12, "createdAt", "desc"), itemsApi.numberOfItems()],)
 
       setStats({
         activeSearches: searchItems.length,
-        totalResults: items.length,
+        totalResults: numberOfItems,
       })
 
       // Get the 6 most recent items

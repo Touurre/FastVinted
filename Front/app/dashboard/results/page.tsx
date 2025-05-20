@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
+import { Heart, ExternalLink, RefreshCw, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { searchItemsApi, itemsApi } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import { SearchIcon } from "lucide-react"
+import { set } from "date-fns"
 
 export default function ResultsPage() {
   const searchParams = useSearchParams()
@@ -19,24 +20,33 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [results, setResults] = useState([])
   const [searchInfo, setSearchInfo] = useState(null)
-  const [sortBy, setSortBy] = useState("newest")
+  const [sortBy, setSortBy] = useState("createdAt")
+  const [order, setOrder] = useState<"desc" | "asc">("desc")
   const { toast } = useToast()
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const itemsPerPage = 12
 
   useEffect(() => {
     fetchData()
-  }, [searchId])
+  }, [searchId, currentPage, sortBy, order])
 
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      let itemsData
+      let response
       let searchData = null
+      let totalItems = 0
 
       if (searchId) {
         // Fetch specific search item and its results
-        ;[searchData, itemsData] = await Promise.all([
+        ;[searchData, response, totalItems] = await Promise.all([
           searchItemsApi.getById(searchId),
-          itemsApi.getBySearchItem(searchId),
+          itemsApi.getBySearchItem(searchId, currentPage, itemsPerPage, sortBy, order),
+          itemsApi.numberOfItemsPerSearch(searchId),
         ])
 
         setSearchInfo({
@@ -44,18 +54,22 @@ export default function ResultsPage() {
           name: searchData.searchText,
           lastUpdated: new Date().toISOString(),
         })
+        setTotalItems(totalItems)
       } else {
         // Fetch all items
-        itemsData = await itemsApi.getAll()
+        response = await itemsApi.getAll(currentPage, itemsPerPage, sortBy, order)
+        totalItems = await itemsApi.numberOfItems()
 
         setSearchInfo({
           id: "all",
           name: "All Searches",
           lastUpdated: new Date().toISOString(),
         })
+        setTotalItems(totalItems)
       }
 
-      setResults(itemsData)
+      setResults(response)
+      setTotalPages(Math.ceil((totalItems) / itemsPerPage))
     } catch (error) {
       toast({
         variant: "destructive",
@@ -76,20 +90,24 @@ export default function ResultsPage() {
     })
   }
 
-  const sortedResults = [...results].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return new Date(b.createdAt) - new Date(a.createdAt)
-      case "oldest":
-        return new Date(a.createdAt) - new Date(b.createdAt)
-      case "price-low":
-        return a.price - b.price
-      case "price-high":
-        return b.price - a.price
-      default:
-        return 0
+  const handleSortChange = (value: string) => {
+    // Split the value into sortBy and order
+    const [newSortBy, newOrder] = value.split("-") as [string, "desc" | "asc"]
+    setSortBy(newSortBy)
+    setOrder(newOrder)
+  }
+
+  const getSortValue = () => {
+    return `${sortBy}-${order}`
+  }
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+      // Scroll to top when changing pages
+      window.scrollTo({ top: 0, behavior: "smooth" })
     }
-  })
+  }
 
   return (
     <div className="grid gap-6">
@@ -97,7 +115,11 @@ export default function ResultsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Search Results</h1>
           <p className="text-muted-foreground">
-            {searchInfo ? `Showing results for "${searchInfo.name}"` : "Loading search information..."}
+            {searchInfo
+              ? searchInfo.id === "all"
+                ? "Showing all results"
+                : `Showing results for "${searchInfo.name}"`
+              : "Loading search information..."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -111,15 +133,15 @@ export default function ResultsPage() {
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh
           </Button>
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select value={getSortValue()} onValueChange={handleSortChange}>
             <SelectTrigger className="w-[180px] rounded-full">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest First</SelectItem>
-              <SelectItem value="oldest">Oldest First</SelectItem>
-              <SelectItem value="price-low">Price: Low to High</SelectItem>
-              <SelectItem value="price-high">Price: High to Low</SelectItem>
+              <SelectItem value="createdAt-desc">Newest First</SelectItem>
+              <SelectItem value="createdAt-asc">Oldest First</SelectItem>
+              <SelectItem value="price-asc">Price: Low to High</SelectItem>
+              <SelectItem value="price-desc">Price: High to Low</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -159,18 +181,19 @@ export default function ResultsPage() {
         <>
           {searchInfo && (
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Found {results.length} items</span>
+              <span>
+              </span>
               <span>Last updated: {new Date(searchInfo.lastUpdated).toLocaleString()}</span>
             </div>
           )}
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sortedResults.map((item) => (
+            {results.map((item) => (
               <Card key={item.id} className="overflow-hidden border-0 shadow-md hover-scale">
                 <div className="relative aspect-square">
                   <Image
                     src={item.imageUrl || "/placeholder.svg?height=400&width=400"}
-                    alt={item.name}
+                    alt={item.searchText}
                     fill
                     className="object-cover"
                   />
@@ -194,11 +217,9 @@ export default function ResultsPage() {
                       )}
                     </div>
                     <div className="flex items-center justify-between pt-2">
-                      <div
-                        className="text-sm text-muted-foreground"
-                      >
+                      <span className="text-sm text-muted-foreground">
                         {item.sellerName || "Seller"}
-                      </div>
+                      </span>
                       <Link href={item.url || "#"} target="_blank">
                         <Button variant="outline" size="sm" className="gap-1 rounded-full">
                           <ExternalLink className="h-3 w-3" />
@@ -211,6 +232,73 @@ export default function ResultsPage() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || isLoading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    // Show first page, last page, current page, and pages around current page
+                    return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
+                  })
+                  .map((page, index, array) => {
+                    // Add ellipsis where needed
+                    if (index > 0 && array[index - 1] !== page - 1) {
+                      return (
+                        <div key={`ellipsis-${page}`} className="flex items-center">
+                          <span className="px-2 text-muted-foreground">...</span>
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="icon"
+                            className="rounded-full w-8 h-8"
+                            onClick={() => handlePageChange(page)}
+                            disabled={isLoading}
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="icon"
+                        className="rounded-full w-8 h-8"
+                        onClick={() => handlePageChange(page)}
+                        disabled={isLoading}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>

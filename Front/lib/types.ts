@@ -2,7 +2,6 @@
 export interface User {
   id: string
   email: string
-  name?: string
   createdAt: string
   updatedAt: string
 }
@@ -68,4 +67,22 @@ export interface Item {
   userId: string
   createdAt: string
   updatedAt: string
+}
+
+// Pagination types
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+// Webhook types
+export interface DiscordWebhook {
+  id?: string
+  url: string
+  userId: string
+  createdAt?: string
+  updatedAt?: string
 }

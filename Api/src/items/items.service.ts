@@ -6,7 +6,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 export class ItemsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(userId: string) {
+  async findAll(userId: string, limit: number, page: number, orderBy: string, order: "asc" | "desc") {
     return this.prisma.item.findMany({
       where: {
         searchItem: {
@@ -16,10 +16,15 @@ export class ItemsService {
       include: {
         searchItem: true,
       },
+      take: limit,
+      skip: (page - 1) * limit,
+      orderBy: {
+        [orderBy]: order,
+      },
     });
   }
 
-  async findBySearchItem(searchItemId: string, userId: string) {
+  async findBySearchItem(searchItemId: string, userId: string, limit: number, page: number, orderBy: string, order: "asc" | "desc") {
     // Vérifier si le searchItem appartient à l'utilisateur
     const searchItem = await this.prisma.searchItem.findFirst({
       where: {
@@ -37,6 +42,11 @@ export class ItemsService {
     return this.prisma.item.findMany({
       where: {
         searchItemId,
+      },
+      take: limit,
+      skip: (page - 1) * limit,
+      orderBy: {
+        [orderBy]: order,
       },
     });
   }
@@ -66,6 +76,27 @@ export class ItemsService {
 
     return this.prisma.item.delete({
       where: { id },
+    });
+  }
+
+  async numberOfItems(userId: string) {
+    return this.prisma.item.count({
+      where: {
+        searchItem: {
+          userId,
+        },
+      },
+    });
+  }
+
+  async numberOfItemsPerSearch(userId: string, searchItemId: string) {
+    return this.prisma.item.count({
+      where: {
+        searchItem: {
+          id: searchItemId,
+          userId,
+        },
+      },
     });
   }
 }

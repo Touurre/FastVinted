@@ -95,6 +95,15 @@ class VintedStorage:
                 }
                 for item in await cur.fetchall()
             ]
+            
+    async def get_discord_webhooks(self) -> List[Dict]:
+        """Récupère tous les webhooks Discord configurés"""
+        async with self.get_cursor() as cur:
+            await cur.execute("""
+                SELECT url FROM DiscordWebhook
+            """)
+            return [{"url": row["url"]} for row in await cur.fetchall()]
+        
 
     # Gestionnaire de contexte asynchrone
     async def __aenter__(self):

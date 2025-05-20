@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
-import { Home, Search, Settings, LogOut, Menu, X } from "lucide-react"
+import { Home, Search, Settings, LogOut, Menu, X, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -37,6 +37,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       name: "Search Items",
       path: "/dashboard/search-items",
       icon: Search,
+    },
+    {
+      name: "Webhooks",
+      path: "/dashboard/webhooks",
+      icon: Bell,
     },
   ]
 

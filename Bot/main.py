@@ -25,39 +25,37 @@ async def main():
     
     try:
         async with VintedScraper() as scraper:
-            notifier = DiscordNotifier()
+            # Récupère tous les webhooks
             
             logger.info("Monitoring started...")
-            first_run = True
             
             while True:
                 try:
                     configs = await storage.get_search_configs()
                     if not configs:
                         configs = settings.SEARCH_CONFIGS
-                        logger.warning("Using local configs as fallback")
                     
                     for config in configs:
                         items = await scraper.fetch(config)
-                        if items:
-                            new_items = [
-                                item for item in items
-                                if await storage.is_new(f"https://www.vinted.fr{item['path']}")
-                            ]
-                            
-                            if new_items:
-                                await storage.batch_save(new_items)
-                                if not first_run:
-                                    for item in new_items:
-                                        await notifier.send(item, config.get('webhook', 'default'))
+                        new_items = [
+                            item for item in items 
+                            if await storage.is_new(f"https://www.vinted.fr{item['path']}")
+                        ]
+                        
+                        if new_items:
+                            await storage.batch_save(new_items)
+                            for item in new_items:
+                                # Envoie à TOUS les webhooks
+                                webhooks = await storage.get_discord_webhooks()
+                                notifier = DiscordNotifier(webhooks)
+                                await notifier.send_to_all(item)
                     
-                    first_run = False
                     await asyncio.sleep(settings.CHECK_INTERVAL)
-                    
+                
                 except Exception as e:
-                    logger.error(f"Main loop error: {str(e)}")
-                    await asyncio.sleep(30)  # Longer pause on error
-                    
+                    logger.error(f"Erreur: {str(e)}")
+                    await asyncio.sleep(30)
+    
     finally:
         await storage.close()
 

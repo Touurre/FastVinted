@@ -6,6 +6,7 @@ import { SearchItemsModule } from "./search-items/search-items.module"
 import { ItemsModule } from "./items/items.module"
 import { PythonIntegrationModule } from "./python-integration/python-integration.module"
 import { PrismaModule } from "./prisma/prisma.module"
+import { DiscordWebhookModule } from './discord-webhook/discord-webhook.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PrismaModule } from "./prisma/prisma.module"
     SearchItemsModule,
     ItemsModule,
     PythonIntegrationModule,
+    DiscordWebhookModule,
   ],
 })
 export class AppModule {}

@@ -5,6 +5,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from "@nestjs/common";
 import { ItemsService } from "./items.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -25,8 +26,14 @@ export class ItemsController {
   @ApiOperation({ summary: "Get all items for current user" })
   @ApiResponse({ status: 200, description: "Return all items" })
   @Get()
-  findAll(@Request() req) {
-    return this.itemsService.findAll(req.user.id);
+  findAll(
+    @Request() req,
+    @Query("limit") limit: number = 12,
+    @Query("page") page: number = 1,
+    @Query("orderBy") orderBy: string = "createdAt",
+    @Query("order") order: "asc" | "desc" = "desc"
+  ) {
+    return this.itemsService.findAll(req.user.id, limit, page, orderBy, order);
   }
 
   @ApiOperation({ summary: "Get items by search item id" })
@@ -35,9 +42,35 @@ export class ItemsController {
   @Get("search/:searchItemId")
   findBySearchItem(
     @Param("searchItemId") searchItemId: string,
-    @Request() req
+    @Request() req,
+    @Query("limit") limit: number = 12,
+    @Query("page") page: number = 1,
+    @Query("orderBy") orderBy: string = "createdAt",
+    @Query("order") order: "asc" | "desc" = "desc"
   ) {
-    return this.itemsService.findBySearchItem(searchItemId, req.user.id);
+    return this.itemsService.findBySearchItem(
+      searchItemId,
+      req.user.id,
+      limit,
+      page,
+      orderBy,
+      order
+    );
+  }
+
+  @ApiOperation({ summary: "Get number of items for current user" })
+  @ApiResponse({ status: 200, description: "Return number of items" })
+  @Get("count")
+  numberOfItems(@Request() req) {
+    return this.itemsService.numberOfItems(req.user.id);
+  }
+
+
+  @ApiOperation({ summary: "Get number of items for current user" })
+  @ApiResponse({ status: 200, description: "Return number of items" })
+  @Get("count/:id")
+  numberOfItemsPerSearch(@Request() req, @Param("id") id: string) {
+    return this.itemsService.numberOfItemsPerSearch(req.user.id, id);
   }
 
   @ApiOperation({ summary: "Get item by id" })

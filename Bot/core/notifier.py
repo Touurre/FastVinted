@@ -1,28 +1,37 @@
 import requests
 from datetime import datetime
-from typing import Optional
-from . import config
+from typing import List, Dict
+import asyncio
+from aiohttp import ClientSession
 
 
 class DiscordNotifier:
-    def __init__(self):
-        self.webhooks = config.settings.DISCORD_WEBHOOKS
+    def __init__(self, webhooks: List[Dict]):
+        self.webhooks = webhooks
 
-    async def send(self, item: dict, webhook_type: str = "default") -> bool:
-        """Envoie une notification Discord enrichie"""
-        webhook_url = self.webhooks.get(webhook_type)
-        if not webhook_url:
-            print("Erreur : Webhook non configuré")
-            return False
+    async def send_to_all(self, item: dict) -> None:
+        """Envoie la notification à tous les webhooks en parallèle"""
+        if not self.webhooks:
+            print("Aucun webhook Discord configuré")
+            return
 
         payload = self._prepare_payload(item)
+        
+        async with ClientSession() as session:
+            tasks = [
+                self._send_single(session, wh["url"], payload)
+                for wh in self.webhooks
+            ]
+            await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def _send_single(self, session: ClientSession, url: str, payload: dict) -> bool:
+        """Envoie à un webhook spécifique"""
         try:
-            response = requests.post(webhook_url, json=payload, timeout=5)
-            response.raise_for_status()
-            return True
+            async with session.post(url, json=payload, timeout=5) as response:
+                response.raise_for_status()
+                return True
         except Exception as e:
-            print(f"Erreur lors de l'envoi à Discord : {e}")
+            print(f"Erreur lors de l'envoi à {url}: {e}")
             return False
 
     def _prepare_payload(self, item: dict) -> dict:
