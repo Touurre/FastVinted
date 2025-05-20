@@ -26,7 +26,7 @@ class Settings:
         "viewport_size"
     ]
     
-    CHECK_INTERVAL: int = 3
+    CHECK_INTERVAL: int = 10
     
     # Cookies initiaux (optionnel)
     INITIAL_COOKIES: Dict = {}

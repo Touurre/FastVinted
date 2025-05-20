@@ -33,7 +33,7 @@ async def main():
                 try:
                     configs = await storage.get_search_configs()
                     if not configs:
-                        configs = settings.SEARCH_CONFIGS
+                        continue
                     
                     for config in configs:
                         items = await scraper.fetch(config)
