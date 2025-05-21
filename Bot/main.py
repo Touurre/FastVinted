@@ -44,7 +44,7 @@ async def main():
                         if new_items:
                             await storage.batch_save(new_items)
                             webhooks = await storage.get_discord_webhooks()
-                            notifier = DiscordNotifier(webhooks, scraper.proxy_manager)
+                            notifier = DiscordNotifier(webhooks, scraper.proxy_manager if settings.USE_PROXIES else None)
                             
                             # Envoie les notifications en parallèle
                             tasks = [notifier.send_to_all(item) for item in new_items]
