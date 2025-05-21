@@ -1,12 +1,11 @@
 import aiohttp
 import asyncio
-from datetime import datetime
-from typing import List, Dict, Optional
-import random
 import logging
+from typing import List, Dict, Optional
+from .proxy_manager import ProxyManager
 import time
+import random
 
-# Configurez le logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,7 @@ class VintedScraper:
         ]
         self.semaphore = asyncio.Semaphore(2)
         self.retry_count = 3
+        self.proxy_manager = ProxyManager()
 
     async def __aenter__(self):
         await self._init_session()
@@ -48,7 +48,6 @@ class VintedScraper:
                 success = await self._fetch_cookies()
                 if not success:
                     return False
-
             if self.session and not self.session.closed:
                 await self.session.close()
 
@@ -70,7 +69,6 @@ class VintedScraper:
                 timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
                 if response.status == 200:
-                    # Met à jour les cookies
                     new_cookies = {c.key: c.value for c in response.cookies.values()}
                     self.cookies.update(new_cookies)
                     return True
@@ -83,7 +81,7 @@ class VintedScraper:
             return False
 
     async def fetch(self, search_config: Dict) -> List[Dict]:
-        """Effectue la requête avec gestion des réessais"""
+        """Effectue la requête avec gestion des réessais et rotation proxy"""
         if not self.session or self.session.closed:
             success = await self._init_session()
             if not success:
@@ -109,38 +107,40 @@ class VintedScraper:
         for attempt in range(self.retry_count):
             try:
                 async with self.semaphore:
+                    proxy = await self.proxy_manager.get_proxy()
+                    logger.info(f"Utilisation proxy : {proxy}")
+
                     async with self.session.get(
                         f"{self.api_url}/catalog/items",
                         params=params,
+                        proxy=proxy,
                         timeout=aiohttp.ClientTimeout(total=15)
                     ) as response:
-                        
                         if response.status == 401:
                             logger.warning("Session expirée - Tentative de renouvellement...")
-                            await self._fetch_cookies()  # Récupère de nouveaux cookies
-                            await self._init_session()    # Réinitialise la session
+                            await self._fetch_cookies()
+                            await self._init_session()
                             continue
-                            
+
                         response.raise_for_status()
                         data = await response.json()
-                        
+
                         items = data.get('items', [])
                         for item in items:
                             item['search_item_id'] = search_config['search_item_id']
                         
                         return items
-                        
+
             except Exception as e:
-                logger.warning(f"Tentative {attempt + 1} échouée: {str(e)}")
+                logger.warning(f"Tentative {attempt + 1} échouée avec proxy : {proxy} - {str(e)}")
                 if attempt == self.retry_count - 1:
                     logger.error("Échec après plusieurs tentatives")
                     return []
-                await asyncio.sleep(2 * (attempt + 1))  # Backoff exponentiel
+                await asyncio.sleep(2 * (attempt + 1))
 
         return []
 
     async def close(self):
-        """Ferme proprement la session"""
         if self.session and not self.session.closed:
             await self.session.close()
             self.session = None

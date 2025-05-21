@@ -25,14 +25,13 @@ async def main():
     
     try:
         async with VintedScraper() as scraper:
-            # Récupère tous les webhooks
-            
             logger.info("Monitoring started...")
             
             while True:
                 try:
                     configs = await storage.get_search_configs()
                     if not configs:
+                        await asyncio.sleep(settings.CHECK_INTERVAL)
                         continue
                     
                     for config in configs:
@@ -44,11 +43,12 @@ async def main():
                         
                         if new_items:
                             await storage.batch_save(new_items)
-                            for item in new_items:
-                                # Envoie à TOUS les webhooks
-                                webhooks = await storage.get_discord_webhooks()
-                                notifier = DiscordNotifier(webhooks)
-                                await notifier.send_to_all(item)
+                            webhooks = await storage.get_discord_webhooks()
+                            notifier = DiscordNotifier(webhooks, scraper.proxy_manager)
+                            
+                            # Envoie les notifications en parallèle
+                            tasks = [notifier.send_to_all(item) for item in new_items]
+                            await asyncio.gather(*tasks)
                     
                     await asyncio.sleep(settings.CHECK_INTERVAL)
                 

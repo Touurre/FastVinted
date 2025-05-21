@@ -27,14 +27,5 @@ class Settings:
     ]
     
     CHECK_INTERVAL: int = 10
-    
-    # Cookies initiaux (optionnel)
-    INITIAL_COOKIES: Dict = {}
-    
-    # Webhooks Discord
-    DISCORD_WEBHOOKS: Dict = {
-        "default": os.getenv("DISCORD_WEBHOOK"),
-        "urgent": os.getenv("DISCORD_WEBHOOK_URGENT")
-    }
 
 settings = Settings()

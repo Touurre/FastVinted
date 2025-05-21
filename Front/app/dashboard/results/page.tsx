@@ -227,6 +227,13 @@ export default function ResultsPage() {
                         </Button>
                       </Link>
                     </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString("fr-FR", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "UTC",
+                      })}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
