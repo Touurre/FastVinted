@@ -26,7 +26,7 @@ class Settings:
         "viewport_size"
     ]
     
-    CHECK_INTERVAL: int = 100  # Intervalle de vérification en secondes
+    CHECK_INTERVAL: int = 200  # Intervalle de vérification en secondes
     
     USE_PROXIES: bool = False
 
